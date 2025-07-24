@@ -77,7 +77,8 @@ export const getUrlInfo = async (
 
 			const urlInfo: WAUrlInfo = {
 				'canonical-url': info.url,
-				'matched-text': text,
+				// SDKWA-FIX
+				'matched-text': info.url,
 				title: info.title,
 				description: info.description,
 				originalThumbnailUrl: image

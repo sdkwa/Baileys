@@ -21,4 +21,6 @@ export interface Contact {
 	 */
 	imgUrl?: string | null
 	status?: string
+    // SDKWA-FIX
+    deviceName?: string
 }

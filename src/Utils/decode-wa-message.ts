@@ -10,7 +10,8 @@ import {
 	isJidNewsletter,
 	isJidStatusBroadcast,
 	isJidUser,
-	isLidUser
+	isLidUser,
+	jidDecode
 } from '../WABinary'
 import { unpadRandomMax16 } from './generics'
 import type { ILogger } from './logger'
@@ -229,6 +230,11 @@ export const decryptMessageNode = (
 				}
 			}
 
+			// SDKWA-FIX
+			(fullMessage as any).fullJid = jidDecode(stanza.attrs.from);
+			(fullMessage as any).fullJid = jidDecode(stanza.attrs.from);
+			// SDKWA-FIX
+			(fullMessage as any).type = stanza.attrs.type
 			// if nothing was found to decrypt
 			if (!decryptables) {
 				fullMessage.messageStubType = proto.WebMessageInfo.StubType.CIPHERTEXT

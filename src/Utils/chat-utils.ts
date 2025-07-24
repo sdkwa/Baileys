@@ -25,6 +25,7 @@ import {
 	getBinaryNodeChildren,
 	isJidGroup,
 	isJidUser,
+	jidDecode,
 	jidNormalizedUser
 } from '../WABinary'
 import { aesDecrypt, aesEncrypt, hkdf, hmacSign } from './crypto'
@@ -886,6 +887,14 @@ export const processSyncAction = (
 							labelId: syncAction.index[1]
 						} as MessageLabelAssociation)
 		})
+	} else if (action?.agentAction && type === 'deviceAgent') {
+		if (action && action.agentAction) {
+			// SDKWA-FIX
+			const { device } = jidDecode(me.id)!
+			if (device && device == action.agentAction.deviceID) {
+				ev.emit('creds.update', { me: { ...me, deviceName: action.agentAction.name! } });
+			}
+		}
 	} else {
 		logger?.debug({ syncAction, id }, 'unprocessable update')
 	}
