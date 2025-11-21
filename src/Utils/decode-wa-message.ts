@@ -5,10 +5,10 @@ import type { SignalRepositoryWithLIDStore } from '../Types/Signal'
 import {
 	areJidsSameUser,
 	type BinaryNode,
+	isHostedLidUser,
+	isHostedPnUser,
 	isJidBroadcast,
 	isJidGroup,
-	isJidHostedLidUser,
-	isJidHostedPnUser,
 	isJidMetaAI,
 	isJidNewsletter,
 	isJidStatusBroadcast,
@@ -20,8 +20,8 @@ import {
 import { unpadRandomMax16 } from './generics'
 import type { ILogger } from './logger'
 
-const getDecryptionJid = async (sender: string, repository: SignalRepositoryWithLIDStore): Promise<string> => {
-	if (sender.includes('@lid')) {
+export const getDecryptionJid = async (sender: string, repository: SignalRepositoryWithLIDStore): Promise<string> => {
+	if (isLidUser(sender) || isHostedLidUser(sender)) {
 		return sender
 	}
 
@@ -36,6 +36,7 @@ const storeMappingFromEnvelope = async (
 	decryptionJid: string,
 	logger: ILogger
 ): Promise<void> => {
+	// TODO: Handle hosted IDs
 	const { senderAlt } = extractAddressingContext(stanza)
 
 	if (senderAlt && isLidUser(senderAlt) && isPnUser(sender) && decryptionJid === sender) {
@@ -135,7 +136,7 @@ export function decodeMessageNode(stanza: BinaryNode, meId: string, meLid: strin
 	const isMe = (jid: string) => areJidsSameUser(jid, meId)
 	const isMeLid = (jid: string) => areJidsSameUser(jid, meLid)
 
-	if (isPnUser(from) || isLidUser(from) || isJidHostedLidUser(from) || isJidHostedPnUser(from)) {
+	if (isPnUser(from) || isLidUser(from) || isHostedLidUser(from) || isHostedPnUser(from)) {
 		if (recipient && !isJidMetaAI(recipient)) {
 			if (!isMe(from!) && !isMeLid(from!)) {
 				throw new Boom('receipient present, but msg not from me', { data: stanza })
@@ -206,6 +207,7 @@ export function decodeMessageNode(stanza: BinaryNode, meId: string, meLid: strin
 
 	const fullMessage: WAMessage = {
 		key,
+		category: stanza.attrs.category,
 		messageTimestamp: +stanza.attrs.t!,
 		pushName: pushname,
 		broadcast: isJidBroadcast(from)
@@ -248,6 +250,10 @@ export const decryptMessageNode = (
 						fullMessage.key.isViewOnce = true // TODO: remove from here and add a STUB TYPE
 					}
 
+					if (attrs.count && tag === 'enc') {
+						fullMessage.retryCount = Number(attrs.count)
+					}
+
 					if (tag !== 'enc' && tag !== 'plaintext') {
 						continue
 					}
@@ -260,12 +266,11 @@ export const decryptMessageNode = (
 
 					let msgBuffer: Uint8Array
 
-					const user = isPnUser(sender) ? sender : author // TODO: flaky logic
-
-					const decryptionJid = await getDecryptionJid(user, repository)
+					const decryptionJid = await getDecryptionJid(author, repository)
 
 					if (tag !== 'plaintext') {
-						await storeMappingFromEnvelope(stanza, user, repository, decryptionJid, logger)
+						// TODO: Handle hosted devices
+						await storeMappingFromEnvelope(stanza, author, repository, decryptionJid, logger)
 					}
 
 					try {
@@ -339,7 +344,7 @@ export const decryptMessageNode = (
 			// SDKWA-FIX
 			(fullMessage as any).type = stanza.attrs.type
 			// if nothing was found to decrypt
-			if (!decryptables) {
+			if (!decryptables && !fullMessage.key?.isViewOnce) {
 				fullMessage.messageStubType = proto.WebMessageInfo.StubType.CIPHERTEXT
 				fullMessage.messageStubParameters = [NO_MESSAGE_FOUND_ERROR_TEXT]
 			}

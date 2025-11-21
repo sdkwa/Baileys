@@ -75,7 +75,7 @@ export function makeCacheableSignalKeyStore(
 						const item = fetched[id]
 						if (item) {
 							data[id] = item
-							cache.set(getUniqueId(type, id), item)
+							await cache.set(getUniqueId(type, id), item as SignalDataTypeMap[keyof SignalDataTypeMap])
 						}
 					}
 				}
@@ -325,6 +325,7 @@ export const initAuthCreds = (): AuthenticationCreds => {
 		registered: false,
 		pairingCode: undefined,
 		lastPropHash: undefined,
-		routingInfo: undefined
+		routingInfo: undefined,
+		additionalData: undefined
 	}
 }
